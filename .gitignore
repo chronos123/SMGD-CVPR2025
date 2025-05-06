@@ -1,0 +1,11 @@
+dataset
+VQ_ckpt
+log*
+env.sh
+.vscode
+__pycache__
+latent_diffusion.egg-info
+results*
+
+ldm/modules/attention_xformer.py
+

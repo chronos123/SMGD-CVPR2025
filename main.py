@@ -16,9 +16,13 @@ from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.utilities import rank_zero_info
+# from lightning.pytorch.strategies import FSDPStrategy
 
 from ldm.data.base import Txt2ImgIterableBaseDataset
 from ldm.util import instantiate_from_config
+
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def get_parser(**parser_kwargs):
@@ -400,7 +404,7 @@ class CUDACallback(Callback):
         torch.cuda.synchronize(trainer.root_gpu)
         self.start_time = time.time()
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
+    def on_train_epoch_end(self, trainer, pl_module):
         torch.cuda.synchronize(trainer.root_gpu)
         max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2 ** 20
         epoch_time = time.time() - self.start_time
@@ -518,7 +522,7 @@ if __name__ == "__main__":
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
         # default to ddp
-        trainer_config["accelerator"] = "ddp"
+        trainer_config["accelerator"] = "gpu"
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
         if not "gpus" in trainer_config:
@@ -656,6 +660,30 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
+        # 1.4.2 (当前版本)
+        # pip install -i https://pypi.tuna.tsinghua.edu.cn/simple fairscale
+        # trainer_kwargs["plugins"] = "ddp_sharded"
+        # 或者 deepspeed_stage_2_offload, deepspeed_stage_3_offload
+        # pip install deepspeed
+        
+
+        # 2.4.0版本
+        # enable FSDP strategy - 8倍下采样模型可训练
+        # trainer_kwargs["strategy"] = FSDPStrategy()
+        # 读取预训练的VAE模型 + 读取预训练的CLIP模型 + 训练自己的球卷积的Unet模型 (未用预训练的模型)
+        # 自己的VQGAN模型 + 预训练的CLIP模型 + 自己的球卷积Unet模型
+        
+        # # 进一步优化的方法
+        # # 1. Import a suiting wrapping policy from PyTorch
+        # from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+
+        # # 2. Configure the policy
+        # policy = partial(size_based_auto_wrap_policy, min_num_params=10000)
+
+        # # 3. Pass it to the FSDPStrategy object
+        # strategy = FSDPStrategy(auto_wrap_policy=policy)
+
+        trainer_kwargs["strategy"] = "ddp"
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         trainer.logdir = logdir  ###
 
@@ -722,7 +750,8 @@ if __name__ == "__main__":
                 raise
         if not opt.no_test and not trainer.interrupted:
             trainer.test(model, data)
-    except Exception:
+    except Exception as e:
+        print(e)
         if opt.debug and trainer.global_rank == 0:
             try:
                 import pudb as debugger

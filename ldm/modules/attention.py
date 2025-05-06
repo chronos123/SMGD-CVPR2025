@@ -5,6 +5,15 @@ import torch.nn.functional as F
 from torch import nn, einsum
 from einops import rearrange, repeat
 
+
+# 添加 xFormers 支持 -----------------------------------------------------
+try:
+    import xformers.ops as xops
+    XFORMERS_AVAILABLE = True
+except ImportError:
+    XFORMERS_AVAILABLE = False
+# -----------------------------------------------------------------------
+
 from ldm.modules.diffusionmodules.util import checkpoint
 
 
@@ -149,6 +158,49 @@ class SpatialSelfAttention(nn.Module):
         return x+h_
 
 
+# class CrossAttention(nn.Module):
+#     def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.):
+#         super().__init__()
+#         inner_dim = dim_head * heads
+#         context_dim = default(context_dim, query_dim)
+
+#         self.scale = dim_head ** -0.5
+#         self.heads = heads
+
+#         self.to_q = nn.Linear(query_dim, inner_dim, bias=False)
+#         self.to_k = nn.Linear(context_dim, inner_dim, bias=False)
+#         self.to_v = nn.Linear(context_dim, inner_dim, bias=False)
+
+#         self.to_out = nn.Sequential(
+#             nn.Linear(inner_dim, query_dim),
+#             nn.Dropout(dropout)
+#         )
+
+#     def forward(self, x, context=None, mask=None):
+#         h = self.heads
+
+#         q = self.to_q(x)
+#         context = default(context, x)
+#         k = self.to_k(context)
+#         v = self.to_v(context)
+
+#         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
+
+#         sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
+
+#         if exists(mask):
+#             mask = rearrange(mask, 'b ... -> b (...)')
+#             max_neg_value = -torch.finfo(sim.dtype).max
+#             mask = repeat(mask, 'b j -> (b h) () j', h=h)
+#             sim.masked_fill_(~mask, max_neg_value)
+
+#         # attention, what we cannot get enough of
+#         attn = sim.softmax(dim=-1)
+
+#         out = einsum('b i j, b j d -> b i d', attn, v)
+#         out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
+#         return self.to_out(out)
+
 class CrossAttention(nn.Module):
     def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.):
         super().__init__()
@@ -157,6 +209,7 @@ class CrossAttention(nn.Module):
 
         self.scale = dim_head ** -0.5
         self.heads = heads
+        self.dim_head = dim_head
 
         self.to_q = nn.Linear(query_dim, inner_dim, bias=False)
         self.to_k = nn.Linear(context_dim, inner_dim, bias=False)
@@ -175,23 +228,34 @@ class CrossAttention(nn.Module):
         k = self.to_k(context)
         v = self.to_v(context)
 
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
+        if XFORMERS_AVAILABLE:  #  xFormers  ----------------------
+            q = q.view(q.shape[0], -1, h, self.dim_head)
+            k = k.view(k.shape[0], -1, h, self.dim_head)
+            v = v.view(v.shape[0], -1, h, self.dim_head)
+            
+            
+            out = xops.memory_efficient_attention(
+                q, k, v,
+                scale=self.scale,
+                attn_bias=xops.LowerTriangularMask() if mask is not None else None
+            )
+            out = out.view(out.shape[0], -1, h * self.dim_head)
+        else:  
+            q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
+            sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
-        sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
+            if exists(mask):
+                mask = rearrange(mask, 'b ... -> b (...)')
+                max_neg_value = -torch.finfo(sim.dtype).max
+                mask = repeat(mask, 'b j -> (b h) () j', h=h)
+                sim.masked_fill_(~mask, max_neg_value)
 
-        if exists(mask):
-            mask = rearrange(mask, 'b ... -> b (...)')
-            max_neg_value = -torch.finfo(sim.dtype).max
-            mask = repeat(mask, 'b j -> (b h) () j', h=h)
-            sim.masked_fill_(~mask, max_neg_value)
+            attn = sim.softmax(dim=-1)
+            out = einsum('b i j, b j d -> b i d', attn, v)
+            out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
 
-        # attention, what we cannot get enough of
-        attn = sim.softmax(dim=-1)
-
-        out = einsum('b i j, b j d -> b i d', attn, v)
-        out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
         return self.to_out(out)
-
+    
 
 class BasicTransformerBlock(nn.Module):
     def __init__(self, dim, n_heads, d_head, dropout=0., context_dim=None, gated_ff=True, checkpoint=True):

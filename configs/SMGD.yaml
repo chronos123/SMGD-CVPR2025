@@ -1,0 +1,101 @@
+model:
+  base_learning_rate: 1.0e-05
+  target: ldm.models.diffusion.ddpm.LatentDiffusionRectMixLossSch
+  params:
+    linear_start: 0.0015
+    linear_end: 0.0195
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    sp_lambda: 0.2
+    l2_lambda: 0.8
+    first_stage_key: image
+    cond_stage_key: caption
+    image_size:
+    - 32
+    - 64
+    channels: 3
+    cond_stage_trainable: false
+    conditioning_key: crossattn
+    monitor: train/loss_simple_epoch
+    use_ema: false
+    scheduler_config: true
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.SphereUNetModel2BlockSpoResInSpDEXPReverse
+      params:
+        image_size: 32
+        in_channels: 3
+        out_channels: 3
+        model_channels: 320
+        attention_resolutions:
+        - 8
+        - 4
+        - 2
+        - 1
+        num_res_blocks: 2
+        channel_mult:
+        - 1
+        - 2
+        - 3
+        - 4
+        num_head_channels: 32
+        use_spatial_transformer: true
+        transformer_depth: 1
+        context_dim: 768
+    first_stage_config:
+      target: ldm.models.autoencoder.VQModelInterfaceRectCircularPad
+      params:
+        embed_dim: 3
+        n_embed: 8192
+        ckpt_path: VQ_ckpt/vqgan.ckpt
+        ddconfig:
+          double_z: false
+          z_channels: 256
+          resolution:
+          - 256
+          - 512
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult:
+          - 1
+          - 1
+          - 2
+          - 2
+          - 4
+          num_res_blocks: 2
+          attn_resolutions:
+          - 16
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPTextEmbedder
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 2
+    num_workers: 8
+    wrap: false
+    train:
+      target: ldm.data.base.ImageFolder
+      params:
+        data_path:
+        return_text: true
+        pair_json_path: 
+        aug: true
+
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 5000
+        max_images: 1
+        increase_log_steps: False
+
+  trainer:
+    benchmark: True
+    accumulate_grad_batches: 1
+    max_epochs: 700
