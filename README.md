@@ -37,6 +37,8 @@ pip install -e .
 
 We use the Matterport3D dataset and *preprocess/preprocessing.py* is used for generating training and testing images.
 
+Matterport3D download: https://niessner.github.io/Matterport/
+
 Details: comming soon
 
 ## 3. Pre-trained Weight
@@ -51,7 +53,9 @@ mkdir logs/ckpt
 
 
 ### 🛠️ First, train the VQGAN for image encoding and decoding
+
 ```bash
+python main_fsdp.py -b configs/VQGAN.yaml -t --gpus 6,7
 ```
 
 The pretrained VQGAN can be downloaded from *[vqgan.ckpt](https://huggingface.co/aberts/SMGD/tree/main)*.
