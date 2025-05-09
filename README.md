@@ -35,11 +35,20 @@ pip install -e .
 
 ## 2. Dataset
 
+### Matterport3D
+
 We use the Matterport3D dataset and *preprocess/preprocessing.py* is used for generating training and testing images.
 
 Matterport3D download: https://niessner.github.io/Matterport/
 
 Details: comming soon
+
+### Structured3D
+
+
+
+model: Salesforce/blip2-opt-2.7b
+
 
 ## 3. Pre-trained Weight
 

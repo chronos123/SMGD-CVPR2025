@@ -123,7 +123,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ddim_steps",
         type=int,
-        default=200,
+        default=50,
         help="number of ddim sampling steps",
     )
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scale",
         type=float,
-        default=5.0,
+        default=2.5,
         help="unconditional guidance scale",
     )
     parser.add_argument(

@@ -44,3 +44,7 @@ data:
       target: taming.data.Matterport3D.CustomTest
       params:
         path: 
+
+lightning:
+  trainer:
+    precision: 16
