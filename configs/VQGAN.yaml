@@ -39,11 +39,11 @@ data:
     train:
       target: taming.data.Matterport3D.CustomTrain
       params:
-        path: 
-    validation:
-      target: taming.data.Matterport3D.CustomTest
-      params:
-        path: 
+        path: preprocess/Matterport.txt
+    # validation:
+    #   target: taming.data.Matterport3D.CustomTest
+    #   params:
+    #     path: 
 
 lightning:
   trainer:

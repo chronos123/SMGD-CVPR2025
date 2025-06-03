@@ -80,9 +80,9 @@ data:
     train:
       target: ldm.data.base.ImageFolder
       params:
-        data_path:
+        data_path: preprocess/Matterport.txt
         return_text: true
-        pair_json_path: 
+        pair_json_path: preprocess/Matterport.json
         aug: true
 
 
