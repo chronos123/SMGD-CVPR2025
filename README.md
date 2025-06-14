@@ -97,5 +97,14 @@ If you have any question about our work or code, please email `xianchengsun@buaa
 
 ## Reference
 
-comming soon
+```
+@InProceedings{Sun_2025_CVPR,
+    author    = {Sun, Xiancheng and Xu, Mai and Li, Shengxi and Ma, Senmao and Deng, Xin and Jiang, Lai and Shen, Gang},
+    title     = {Spherical Manifold Guided Diffusion Model for Panoramic Image Generation},
+    booktitle = {Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR)},
+    month     = {June},
+    year      = {2025},
+    pages     = {5824-5834}
+}
+```
 
