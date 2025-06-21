@@ -99,3 +99,4 @@ lightning:
     benchmark: True
     accumulate_grad_batches: 1
     max_epochs: 700
+    gpus: 0,1

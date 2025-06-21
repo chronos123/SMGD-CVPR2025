@@ -48,3 +48,4 @@ data:
 lightning:
   trainer:
     precision: 16
+    gpus: 0,1
