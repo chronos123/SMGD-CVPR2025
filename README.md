@@ -2,6 +2,8 @@
 
 - This is the official repository of the paper "Spherical Manifold Guided Diffusion Model for Panoramic Image Generation" from CVPR2025. 
 
+- [paper](https://openaccess.thecvf.com/content/CVPR2025/papers/Sun_Spherical_Manifold_Guided_Diffusion_Model_for_Panoramic_Image_Generation_CVPR_2025_paper.pdf)
+
 ![Figure 1](assests/Fig1.png)
 ![The overall framework](assests/Network.png)
 
